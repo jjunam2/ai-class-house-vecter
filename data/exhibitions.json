@@ -1,0 +1,267 @@
+[
+  {
+    "id": "exemplar-1",
+    "studentName": "김서연 (우수 사례)",
+    "classRoom": "2학년 1반",
+    "title": "국화리 수변 사선 기둥 박공주택",
+    "concept": "저수지 남향 바람을 막고 현관에 사선 목재 기둥으로 구조적 안정감과 햇빛 유입을 동시에 살린 집입니다.",
+    "houseConfig": {
+      "archetype": "gable",
+      "width": 8,
+      "depth": 6,
+      "wallHeight": 3,
+      "roofHeight": 2,
+      "roofOffset": 0,
+      "pillarTilt": 1,
+      "originMode": "corner",
+      "customOrigin": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "siteLotId": "lotA"
+    },
+    "observation": {
+      "selectedLotId": "lotA",
+      "sunTimeHour": 13,
+      "orientationNote": "저수지를 정면으로 바라보는 남향 배치",
+      "terrainNote": "표고 18m 완만지, 바닥 기준점 B₁을 원점 (0,0,0)으로 설정",
+      "environmentNote": "수변 습기를 피하기 위해 지붕 처마 경사를 명확히 설계",
+      "houseConcept": "사선 기둥과 대칭 박공지붕이 어우러진 전원주택"
+    },
+    "inquiryQuestion": "만약 원점을 집의 중앙으로 옮긴다면 지붕 평면 방정식의 법선벡터는 그대로이고 상수항 d만 바뀔까?",
+    "verifiedLineSummary": {
+      "label": "현관 좌측 사선 기둥 (S₁ → S₂)",
+      "equationLatex": "\\frac{x}{1} = \\frac{y + 2}{2} = \\frac{z}{3}",
+      "angleGroundDeg": 53.3,
+      "pointA": {
+        "x": 0,
+        "y": -2,
+        "z": 0
+      },
+      "pointB": {
+        "x": 1,
+        "y": 0,
+        "z": 3
+      }
+    },
+    "verifiedPlaneSummary": {
+      "label": "좌측 박공 지붕면 (E₁, R₁, E₄)",
+      "equationLatex": "x - 2z + 6 = 0",
+      "normal": {
+        "x": 1,
+        "y": 0,
+        "z": -2
+      },
+      "angleGroundDeg": 26.57,
+      "points": [
+        {
+          "x": 0,
+          "y": 0,
+          "z": 3
+        },
+        {
+          "x": 4,
+          "y": 0,
+          "z": 5
+        },
+        {
+          "x": 0,
+          "y": 6,
+          "z": 3
+        }
+      ]
+    },
+    "verifiedRelationSummary": {
+      "label": "사선 기둥과 좌측 지붕면이 이루는 각",
+      "resultText": "θ ≈ 36.7° (sin θ = |1·1 + 2·0 + 3·(-2)| / (√14·√5))"
+    },
+    "reflectionNote": "처음에는 지붕 경사각을 30°라고 어림잡았으나, 좌표 (0,0,3)과 (4,0,5)로 법선벡터 (1,0,-2)를 구해 검증해보니 실제 경사각이 약 26.57°임을 알게 되었습니다. 원점을 중앙 (4,3,0)으로 바꾸어도 방향벡터와 법선벡터의 방향은 변하지 않는다는 점이 흥미로웠습니다.",
+    "aiCitationNote": "Gemini AI 계산 점검 및 교사 웹앱 정밀 검증 완료",
+    "isExemplar": true,
+    "comments": [
+      {
+        "id": "c-ex-1",
+        "authorName": "박지훈",
+        "feedbackType": "vector-relation",
+        "content": "좌표 원점을 B₁으로 잡아서 기둥 방향벡터가 (1, 2, 3) 깔끔한 정수로 나온 점이 인상적이에요! 반대편 지붕면과의 이면각도 계산해보면 좋을 것 같습니다.",
+        "createdAt": "2026-11-14T10:20:00Z"
+      }
+    ],
+    "createdAt": "2026-11-14T09:00:00Z"
+  },
+  {
+    "id": "exemplar-2",
+    "studentName": "이도현 (우수 사례)",
+    "classRoom": "2학년 2반",
+    "title": "능선 위 태양광 단면 경사 모던하우스",
+    "concept": "B구역 동측 능선의 경사를 살려 남향 태양광 패널 효율이 높은 단일 경사 지붕을 설계했습니다.",
+    "houseConfig": {
+      "archetype": "shed",
+      "width": 10,
+      "depth": 6,
+      "wallHeight": 3,
+      "roofHeight": 3,
+      "roofOffset": 0,
+      "pillarTilt": 1.5,
+      "originMode": "center",
+      "customOrigin": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "siteLotId": "lotB"
+    },
+    "observation": {
+      "selectedLotId": "lotB",
+      "sunTimeHour": 11,
+      "orientationNote": "남동향 능선 위에서 저수지 전경을 조망",
+      "terrainNote": "바닥 중앙을 원점 (0,0,0)으로 잡아 좌우 대칭을 강조",
+      "environmentNote": "오전 일조량을 극대화하는 26.57° 단일 경사 지붕",
+      "houseConcept": "중앙 기준점 기반 모던 경사 지붕 주택"
+    },
+    "inquiryQuestion": "만약 지붕 높이 차이를 3m에서 4m로 높이면 지붕면과 지면의 경사각은 몇 도나 커질까?",
+    "verifiedLineSummary": {
+      "label": "우측 사선 기둥 (S₃ → S₄)",
+      "equationLatex": "\\frac{x - 5}{-1.5} = \\frac{y + 5}{2} = \\frac{z}{3}",
+      "angleGroundDeg": 50.19,
+      "pointA": {
+        "x": 5,
+        "y": -5,
+        "z": 0
+      },
+      "pointB": {
+        "x": 3.5,
+        "y": -3,
+        "z": 3
+      }
+    },
+    "verifiedPlaneSummary": {
+      "label": "단일 경사 지붕면 (E₁, R₁, E₂)",
+      "equationLatex": "y - 2z + 9 = 0",
+      "normal": {
+        "x": 0,
+        "y": 1,
+        "z": -2
+      },
+      "angleGroundDeg": 26.57,
+      "points": [
+        {
+          "x": -5,
+          "y": -3,
+          "z": 3
+        },
+        {
+          "x": -5,
+          "y": 3,
+          "z": 6
+        },
+        {
+          "x": 5,
+          "y": -3,
+          "z": 3
+        }
+      ]
+    },
+    "verifiedRelationSummary": {
+      "label": "바닥 모서리 B₂에서 지붕면까지의 수직 거리",
+      "resultText": "d ≈ 2.68 m"
+    },
+    "reflectionNote": "바닥 중앙을 원점으로 설정하니 x좌표가 -5와 +5로 대칭되어 좌우 기둥의 대칭성을 확인하기 쉬웠습니다. AI 점검 단계에서 평면 방정식의 부호를 반대로 썼는데, 교사 웹앱이 상수배 동치로 정답 처리해 주어 식의 원리를 정확히 이해했습니다.",
+    "aiCitationNote": "Gemini AI 계산 점검 및 교사 웹앱 정밀 검증 완료",
+    "isExemplar": true,
+    "comments": [
+      {
+        "id": "c-ex-2",
+        "authorName": "최유진",
+        "feedbackType": "praise",
+        "content": "단일 경사 지붕이라 법선벡터의 x성분이 0이 되어 y와 z만의 평면 방정식이 나오는 점이 실제 건물 방향과 딱 맞아떨어져서 이해가 잘 됩니다.",
+        "createdAt": "2026-11-14T14:15:00Z"
+      }
+    ],
+    "createdAt": "2026-11-14T11:30:00Z"
+  },
+  {
+    "id": "exemplar-3",
+    "studentName": "정민아 (우수 사례)",
+    "classRoom": "2학년 1반",
+    "title": "바람을 가르는 A프레임 별빛 다락집",
+    "concept": "비대칭 용마루와 급경사 삼각 지붕으로 빗물 배수와 다락방 공간감을 극대화한 소형 농촌 주택입니다.",
+    "houseConfig": {
+      "archetype": "aframe",
+      "width": 6,
+      "depth": 8,
+      "wallHeight": 3,
+      "roofHeight": 3,
+      "roofOffset": 1,
+      "pillarTilt": 0.5,
+      "originMode": "corner",
+      "customOrigin": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "siteLotId": "lotC"
+    },
+    "observation": {
+      "selectedLotId": "lotC",
+      "sunTimeHour": 15,
+      "orientationNote": "마을 진입 평지에 남서향으로 배치하여 오후 채광 확보",
+      "terrainNote": "평탄한 대지 위에 급경사 A프레임 구조 적용",
+      "environmentNote": "비대칭 지붕 양면의 이면각 비교 탐구",
+      "houseConcept": "비대칭 A프레임 기하학 하우스"
+    },
+    "inquiryQuestion": "만약 용마루를 오른쪽으로 1m 편심 이동시키면 양쪽 지붕면이 이루는 이면각은 어떻게 변할까?",
+    "verifiedLineSummary": {
+      "label": "좌측 처마-용마루 서까래 (E₁ → R₁)",
+      "equationLatex": "\\frac{x}{4} = \\frac{z - 0.5}{5.5}, \\quad y = 0",
+      "angleGroundDeg": 53.97,
+      "pointA": {
+        "x": 0,
+        "y": 0,
+        "z": 0.5
+      },
+      "pointB": {
+        "x": 4,
+        "y": 0,
+        "z": 6
+      }
+    },
+    "verifiedPlaneSummary": {
+      "label": "좌측 급경사 지붕면 (E₁, R₁, E₄)",
+      "equationLatex": "11x - 8z + 4 = 0",
+      "normal": {
+        "x": 11,
+        "y": 0,
+        "z": -8
+      },
+      "angleGroundDeg": 53.97,
+      "points": [
+        {
+          "x": 0,
+          "y": 0,
+          "z": 0.5
+        },
+        {
+          "x": 4,
+          "y": 0,
+          "z": 6
+        },
+        {
+          "x": 0,
+          "y": 8,
+          "z": 0.5
+        }
+      ]
+    },
+    "verifiedRelationSummary": {
+      "label": "양쪽 비대칭 지붕면 사이의 이면각",
+      "resultText": "θ ≈ 56.01°"
+    },
+    "reflectionNote": "직선 E₁R₁이 xz평면(y=0) 위에 있어서 대칭형 분수식에 y=0이 따로 붙는다는 것을 처음에는 놓쳤습니다. AI 점검과 교사 웹앱 풀이를 비교하면서 방향벡터의 성분이 0일 때 직선의 방정식을 표기하는 법을 확실히 익혔습니다.",
+    "aiCitationNote": "Gemini AI 계산 점검 및 교사 웹앱 정밀 검증 완료",
+    "isExemplar": true,
+    "comments": [],
+    "createdAt": "2026-11-15T08:40:00Z"
+  }
+]

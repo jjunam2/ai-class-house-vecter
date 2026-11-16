@@ -1,0 +1,6 @@
+{
+  "name": "벡터로 짓는 나의 집: 공간과 수학의 만남",
+  "description": "고등학교 2학년 기하 읽걷쓰AI 8차시 프로젝트 수업 웹앱 — 국화리 저수지 입지 관찰, 3차원 공간 좌표 설계, H-A-H 직선·평면 벡터 방정식 검증 및 온라인 3D 전시",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

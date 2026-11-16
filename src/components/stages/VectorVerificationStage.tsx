@@ -9,13 +9,13 @@ import {
   XCircle,
 } from 'lucide-react';
 import type {
-  AICheckFeedback,
   HouseDesignConfig,
   VerificationState,
 } from '../../types/project';
 import {
   computeHousePoints,
   crossVec,
+  diagnoseVectorAttempt,
   fmtNum,
   lenVec,
   round2,
@@ -199,63 +199,19 @@ export const VectorVerificationStage: React.FC<VectorVerificationStageProps> = (
     }
   };
 
-  // [A] AI가 돕기 — Server-side Gemini API check
-  const handleAskAiCheck = async () => {
+  // [A] 자체 추론 도우미 점검 (유료 API 없이 동작)
+  const handleAskAiCheck = () => {
     setAiLoading(true);
     setAiError(null);
-
     try {
-      let payload: Record<string, unknown> = { taskType: activeTab };
-
-      if (activeTab === 'line') {
-        const pA = points.find((p) => p.id === verification.lineInput.pointAId)!;
-        const pB = points.find((p) => p.id === verification.lineInput.pointBId)!;
-        payload = {
-          taskType: 'line',
-          pointA: { label: pA.label, x: pA.x, y: pA.y, z: pA.z },
-          pointB: { label: pB.label, x: pB.x, y: pB.y, z: pB.z },
-          studentAnswer: verification.lineInput,
-        };
-      } else if (activeTab === 'plane') {
-        const pP = points.find((p) => p.id === verification.planeInput.pointPId)!;
-        const pQ = points.find((p) => p.id === verification.planeInput.pointQId)!;
-        const pR = points.find((p) => p.id === verification.planeInput.pointRId)!;
-        payload = {
-          taskType: 'plane',
-          pointP: { label: pP.label, x: pP.x, y: pP.y, z: pP.z },
-          pointQ: { label: pQ.label, x: pQ.x, y: pQ.y, z: pQ.z },
-          pointR: { label: pR.label, x: pR.x, y: pR.y, z: pR.z },
-          studentAnswer: verification.planeInput,
-        };
-      } else {
-        const pA = points.find((p) => p.id === verification.lineInput.pointAId)!;
-        const pB = points.find((p) => p.id === verification.lineInput.pointBId)!;
-        const pP = points.find((p) => p.id === verification.planeInput.pointPId)!;
-        const pQ = points.find((p) => p.id === verification.planeInput.pointQId)!;
-        const pR = points.find((p) => p.id === verification.planeInput.pointRId)!;
-        const target = points.find((p) => p.id === verification.relationInput.targetPointId)!;
-        payload = {
-          taskType: 'relation',
-          mode: verification.relationInput.mode,
-          linePoints: [pA, pB],
-          planePoints: [pP, pQ, pR],
-          targetPoint: target,
-          studentAnswer: verification.relationInput,
-        };
-      }
-
-      const resp = await fetch('/api/ai/verify-vector', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-
-      const data = await resp.json();
-      if (!resp.ok) {
-        throw new Error(data.error || 'AI 점검 요청 중 오류가 발생했습니다.');
-      }
-
-      const feedback = data as AICheckFeedback;
+      const feedback = diagnoseVectorAttempt(
+        activeTab,
+        points,
+        verification.lineInput,
+        verification.planeInput,
+        verification.relationInput,
+        config
+      );
       if (activeTab === 'line') {
         onChange({ ...verification, lineAiFeedback: feedback });
       } else if (activeTab === 'plane') {
@@ -263,12 +219,6 @@ export const VectorVerificationStage: React.FC<VectorVerificationStageProps> = (
       } else {
         onChange({ ...verification, relationAiFeedback: feedback });
       }
-    } catch (err) {
-      setAiError(
-        err instanceof Error
-          ? err.message
-          : 'AI 점검 서버와 통신할 수 없습니다. 아래 교사 정밀 검증기를 이용해 정답을 확인하세요.'
-      );
     } finally {
       setAiLoading(false);
     }
@@ -1037,7 +987,7 @@ export const VectorVerificationStage: React.FC<VectorVerificationStageProps> = (
               <div className="flex items-center justify-between">
                 <div className="text-sm font-bold text-blue-900 flex items-center gap-1.5">
                   <Sparkles className="w-4 h-4 text-blue-700" />
-                  <span>[A] Gemini AI 계산 점검 결과</span>
+                  <span>[A] 풀이 점검 도우미 분석 결과</span>
                 </div>
                 <span className="text-xs font-semibold text-blue-700">
                   {currentAiFeedback.isConsistentWithStudent ? '풀이 일치' : '재검토 필요'}
@@ -1048,13 +998,13 @@ export const VectorVerificationStage: React.FC<VectorVerificationStageProps> = (
               </p>
               <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 text-xs space-y-1">
                 <div>
-                  <span className="font-semibold text-slate-800">AI 산출 식: </span>
+                  <span className="font-semibold text-slate-800">산출 식 기준: </span>
                   <span className="font-mono-tabular text-slate-900">
                     {currentAiFeedback.aiCalculatedEquation}
                   </span>
                 </div>
                 <div>
-                  <span className="font-semibold text-slate-800">AI 산출 수치/각도: </span>
+                  <span className="font-semibold text-slate-800">산출 수치/각도: </span>
                   <span className="font-mono-tabular text-slate-900">
                     {currentAiFeedback.aiCalculatedAngleOrValue}
                   </span>

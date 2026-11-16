@@ -1,7 +1,9 @@
 import React, { useMemo, useState } from 'react';
 import {
+  AlertCircle,
   Check,
   Copy,
+  Lock,
   MessageSquare,
   MonitorPlay,
   Send,
@@ -12,6 +14,7 @@ import type {
   ExhibitionProject,
   HouseDesignConfig,
   PeerFeedback,
+  ReflectionAndEthics,
   SiteObservationData,
   VerificationState,
 } from '../../types/project';
@@ -33,11 +36,33 @@ interface ExhibitionStageProps {
   observation: SiteObservationData;
   inquiryQuestion: string;
   verification: VerificationState;
-  reflectionNote: string;
+  reflection: ReflectionAndEthics;
   exhibitions: ExhibitionProject[];
+  dbNotice: string | null;
   onChangeIdentity: (next: { studentName: string; classRoom: string; houseTitle: string }) => void;
-  onPublishProject: (project: ExhibitionProject) => Promise<void>;
-  onAddComment: (projectId: string, comment: Omit<PeerFeedback, 'id' | 'createdAt'>) => Promise<void>;
+  onSubmitResponse: (payload: {
+    studentAlias: string;
+    classGroup: string;
+    siteLotId: string;
+    houseTitle: string;
+    houseConcept: string;
+    houseConfig: HouseDesignConfig;
+    inquiryQuestion: string;
+    verifiedLineSummary: ExhibitionProject['verifiedLineSummary'];
+    verifiedPlaneSummary: ExhibitionProject['verifiedPlaneSummary'];
+    verifiedRelationSummary: ExhibitionProject['verifiedRelationSummary'];
+    reflectionNote: string;
+    selfEval: {
+      selfEval1: ReflectionAndEthics['selfEval1'];
+      selfEval2: ReflectionAndEthics['selfEval2'];
+      selfEval3: ReflectionAndEthics['selfEval3'];
+    };
+    isPublic: boolean;
+  }) => Promise<{ id: string; isPublic: boolean; project?: ExhibitionProject }>;
+  onAddComment: (
+    projectId: string,
+    comment: Omit<PeerFeedback, 'id' | 'createdAt'>
+  ) => Promise<void>;
 }
 
 const FEEDBACK_TYPE_LABELS: Record<PeerFeedback['feedbackType'], string> = {
@@ -54,24 +79,28 @@ export const ExhibitionStage: React.FC<ExhibitionStageProps> = ({
   observation,
   inquiryQuestion,
   verification,
-  reflectionNote,
+  reflection,
   exhibitions,
+  dbNotice,
   onChangeIdentity,
-  onPublishProject,
+  onSubmitResponse,
   onAddComment,
 }) => {
   const [filterMode, setFilterMode] = useState<'all' | 'exemplar'>('all');
   const [selectedProject, setSelectedProject] = useState<ExhibitionProject | null>(null);
   const [publishing, setPublishing] = useState(false);
-  const [publishSuccess, setPublishSuccess] = useState(false);
+  const [publishSuccessMsg, setPublishSuccessMsg] = useState<string | null>(null);
+  const [publishErrorMsg, setPublishErrorMsg] = useState<string | null>(null);
+  const [isPublicShare, setIsPublicShare] = useState(false);
   const [copiedNotion, setCopiedNotion] = useState(false);
-  const [showPublishForm, setShowPublishForm] = useState(false);
+  const [showPublishForm, setShowPublishForm] = useState(true);
 
   // Comment composer state
   const [commentAuthor, setCommentAuthor] = useState(studentName || '');
   const [commentType, setCommentType] = useState<PeerFeedback['feedbackType']>('vector-relation');
   const [commentText, setCommentText] = useState('');
   const [commentSubmitting, setCommentSubmitting] = useState(false);
+  const [commentError, setCommentError] = useState<string | null>(null);
 
   const points = useMemo(() => computeHousePoints(houseConfig), [houseConfig]);
 
@@ -104,7 +133,7 @@ export const ExhibitionStage: React.FC<ExhibitionStageProps> = ({
 
     return [
       `# [벡터로 짓는 나의 집] ${houseTitle || '나의 공간 설계 보고서'}`,
-      `- 작성자: ${classRoom} ${studentName || '이름 미입력'}`,
+      `- 가상 별칭: ${classRoom} ${studentName || '별칭 미입력'}`,
       `- 선택 대지: ${observation.selectedLotId} · 컨셉: ${observation.houseConcept}`,
       ``,
       `## 1. 핵심 탐구 질문`,
@@ -124,9 +153,8 @@ export const ExhibitionStage: React.FC<ExhibitionStageProps> = ({
         ? `- 심화 관계 분석: ${fmtNum(activeRelation.exactValue)}${activeRelation.unit}`
         : '',
       ``,
-      `## 4. H-A-H 검증 및 성찰`,
-      `${reflectionNote || '성찰·윤리 탭에서 성찰 기록 작성 가능'}`,
-      `- 출처 및 윤리: Gemini AI 점검 및 교사 제작 정밀 웹앱 검증 완료 (개인정보 비노출 준수)`,
+      `## 4. 검증 및 성찰`,
+      `${reflection.reflectionAnswer || '성찰·윤리 탭에서 성찰 기록 작성 가능'}`,
     ].join('\n');
   };
 
@@ -136,23 +164,29 @@ export const ExhibitionStage: React.FC<ExhibitionStageProps> = ({
       setCopiedNotion(true);
       setTimeout(() => setCopiedNotion(false), 2200);
     } catch {
-      // Fallback ignored in restricted environments
+      // Ignore clipboard permission errors
     }
   };
 
   const handlePublish = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!studentName.trim() || !houseTitle.trim()) return;
+    setPublishSuccessMsg(null);
+    setPublishErrorMsg(null);
+
+    if (!studentName.trim() || !houseTitle.trim()) {
+      setPublishErrorMsg('가상 별칭과 작품 제목을 모두 입력해 주세요.');
+      return;
+    }
+
     setPublishing(true);
     try {
-      const newProj: ExhibitionProject = {
-        id: `student-${Date.now()}`,
-        studentName: studentName.trim(),
-        classRoom: classRoom.trim() || '2학년',
-        title: houseTitle.trim(),
-        concept: observation.houseConcept || '국화리 저수지 일대 3D 공간 벡터 주택',
+      const result = await onSubmitResponse({
+        studentAlias: studentName.trim(),
+        classGroup: classRoom.trim() || '1모둠',
+        siteLotId: observation.selectedLotId,
+        houseTitle: houseTitle.trim(),
+        houseConcept: observation.houseConcept || '국화리 저수지 일대 3D 공간 벡터 주택',
         houseConfig,
-        observation,
         inquiryQuestion,
         verifiedLineSummary: activeLine.valid
           ? {
@@ -183,20 +217,31 @@ export const ExhibitionStage: React.FC<ExhibitionStageProps> = ({
               resultText: `${fmtNum(activeRelation.exactValue)}${activeRelation.unit}`,
             }
           : null,
-        reflectionNote: reflectionNote || '3차원 좌표와 벡터 방정식으로 집의 구조를 검증하고 반영했습니다.',
-        aiCitationNote:
-          verification.lineAiFeedback || verification.planeAiFeedback
-            ? 'Gemini AI 계산 점검 및 교사 웹앱 정밀 검증 완료'
-            : '교사 제작 웹앱 정밀 검증 완료',
-        comments: [],
-        createdAt: new Date().toISOString(),
-      };
+        reflectionNote:
+          reflection.reflectionAnswer ||
+          '3차원 좌표와 벡터 방정식으로 집의 구조를 검증하고 반영했습니다.',
+        selfEval: {
+          selfEval1: reflection.selfEval1,
+          selfEval2: reflection.selfEval2,
+          selfEval3: reflection.selfEval3,
+        },
+        isPublic: isPublicShare,
+      });
 
-      await onPublishProject(newProj);
-      setPublishSuccess(true);
-      setShowPublishForm(false);
-      setSelectedProject(newProj);
-      setTimeout(() => setPublishSuccess(false), 3000);
+      setPublishSuccessMsg(
+        result.isPublic
+          ? '응답이 저장되었고, 온라인 전시관에 공개 등록되었습니다.'
+          : '비공개 학생 응답이 교사 확인용으로 안전하게 저장되었습니다. (다른 학생에게는 보이지 않습니다.)'
+      );
+      if (result.isPublic && result.project) {
+        setSelectedProject(result.project);
+      }
+    } catch (err) {
+      setPublishErrorMsg(
+        err instanceof Error
+          ? err.message
+          : '서버에 응답을 저장하지 못했습니다. 잠시 후 다시 시도해 주세요.'
+      );
     } finally {
       setPublishing(false);
     }
@@ -204,7 +249,12 @@ export const ExhibitionStage: React.FC<ExhibitionStageProps> = ({
 
   const handleSubmitComment = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedProject || !commentAuthor.trim() || !commentText.trim()) return;
+    if (!selectedProject) return;
+    setCommentError(null);
+    if (!commentAuthor.trim() || !commentText.trim()) {
+      setCommentError('가상 별칭과 피드백 내용을 모두 입력해 주세요.');
+      return;
+    }
     setCommentSubmitting(true);
     try {
       await onAddComment(selectedProject.id, {
@@ -213,12 +263,15 @@ export const ExhibitionStage: React.FC<ExhibitionStageProps> = ({
         content: commentText.trim(),
       });
       setCommentText('');
+    } catch (err) {
+      setCommentError(
+        err instanceof Error ? err.message : '댓글 저장에 실패했습니다.'
+      );
     } finally {
       setCommentSubmitting(false);
     }
   };
 
-  // Keep modal synced with latest exhibition state (for new comments)
   const currentModalProject = useMemo(() => {
     if (!selectedProject) return null;
     return exhibitions.find((p) => p.id === selectedProject.id) ?? selectedProject;
@@ -250,13 +303,13 @@ export const ExhibitionStage: React.FC<ExhibitionStageProps> = ({
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 pb-5 border-b border-slate-200">
         <div>
           <p className="text-xs font-medium text-blue-700 mb-1">
-            4·5단계 (6~8차시) · 읽걷쓰[쓰기] · 실천 행동하기
+            4·5단계 (6~8차시) · 읽걷쓰[쓰기] · 응답 저장 및 온라인 3D 전시
           </p>
           <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-            공간 벡터 온라인 전시관 및 상호 피드백
+            학생 응답 저장 · 온라인 전시관 및 상호 피드백
           </h1>
           <p className="text-sm text-slate-600 mt-1">
-            내 집 모델링과 벡터 분석 산출물을 노션에 정리하거나 온라인 전시에 출품하고, 친구들의 3D 작품에 수학적 피드백 댓글을 남겨보세요.
+            가상 별칭으로 내 집 설계와 벡터 분석 응답을 교사에게 제출하고, 공개를 선택한 작품은 학급 전시관에서 함께 감상합니다.
           </p>
         </div>
 
@@ -266,7 +319,11 @@ export const ExhibitionStage: React.FC<ExhibitionStageProps> = ({
             onClick={handleCopyNotion}
             className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-lg border border-slate-300 bg-white text-slate-800 text-xs font-semibold hover:bg-slate-50 transition-colors whitespace-nowrap"
           >
-            {copiedNotion ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
+            {copiedNotion ? (
+              <Check className="w-4 h-4 text-emerald-600" />
+            ) : (
+              <Copy className="w-4 h-4" />
+            )}
             <span>{copiedNotion ? '노션 마크다운 복사됨' : '노션 정리용 마크다운 복사'}</span>
           </button>
 
@@ -276,56 +333,66 @@ export const ExhibitionStage: React.FC<ExhibitionStageProps> = ({
             className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-blue-700 text-white text-sm font-semibold hover:bg-blue-800 transition-colors whitespace-nowrap"
           >
             <Upload className="w-4 h-4" />
-            <span>내 작품 전시 등록하기</span>
+            <span>{showPublishForm ? '제출 서식 접기' : '내 응답 제출하기'}</span>
           </button>
         </div>
       </div>
 
-      {publishSuccess && (
-        <div className="mt-4 bg-emerald-50 border border-emerald-300 text-emerald-900 px-4 py-3 rounded-xl text-sm font-medium">
-          내 작품과 벡터 분석 산출물이 학급 온라인 전시관에 등록되었습니다!
+      {dbNotice && (
+        <div className="mt-4 bg-amber-50 border border-amber-300 text-amber-900 px-4 py-3 rounded-xl text-xs flex items-center gap-2">
+          <AlertCircle className="w-4 h-4 shrink-0" />
+          <span>{dbNotice}</span>
         </div>
       )}
 
-      {/* Publish Submission Drawer */}
+      {publishSuccessMsg && (
+        <div className="mt-4 bg-emerald-50 border border-emerald-300 text-emerald-900 px-4 py-3 rounded-xl text-sm font-medium">
+          {publishSuccessMsg}
+        </div>
+      )}
+
+      {publishErrorMsg && (
+        <div className="mt-4 bg-red-50 border border-red-300 text-red-900 px-4 py-3 rounded-xl text-sm font-medium flex items-center gap-2">
+          <AlertCircle className="w-4 h-4 shrink-0" />
+          <span>{publishErrorMsg}</span>
+        </div>
+      )}
+
+      {/* Student Response Submission Form */}
       {showPublishForm && (
         <form
           onSubmit={handlePublish}
           className="mt-5 bg-white border border-blue-200 rounded-xl p-5 space-y-4"
         >
-          <div className="flex items-center justify-between">
-            <h2 className="text-base font-bold text-slate-900">
-              온라인 전시 출품 서식 작성 (개인정보 보호 유의)
-            </h2>
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <h2 className="text-base font-bold text-slate-900">
+                학생 프로젝트 응답 저장 (교사 확인용)
+              </h2>
+              <p className="text-xs text-slate-600 mt-0.5">
+                실명·학번·연락처 등 개인정보 대신 수업용 가상 별칭을 입력해 주세요. 비공개 응답은 교사 화면에서만 조회됩니다.
+              </p>
+            </div>
             <button
               type="button"
               onClick={() => setShowPublishForm(false)}
               className="text-slate-400 hover:text-slate-700"
-              aria-label="출품 창 닫기"
+              aria-label="제출 창 닫기"
             >
               <X className="w-5 h-5" />
             </button>
           </div>
+
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             <label className="block">
-              <span className="text-xs font-semibold text-slate-700">학년 · 반</span>
+              <span className="text-xs font-semibold text-slate-700">
+                가상 별칭 (1~30자, 실명 입력 금지)
+              </span>
               <input
                 type="text"
                 required
-                placeholder="예: 2학년 1반"
-                value={classRoom}
-                onChange={(e) =>
-                  onChangeIdentity({ studentName, classRoom: e.target.value, houseTitle })
-                }
-                className="mt-1 w-full px-3 py-2 text-sm rounded-lg border border-slate-300"
-              />
-            </label>
-            <label className="block">
-              <span className="text-xs font-semibold text-slate-700">이름 (또는 닉네임)</span>
-              <input
-                type="text"
-                required
-                placeholder="예: 김하늘"
+                maxLength={30}
+                placeholder="예: 수변건축가07"
                 value={studentName}
                 onChange={(e) =>
                   onChangeIdentity({ studentName: e.target.value, classRoom, houseTitle })
@@ -334,10 +401,24 @@ export const ExhibitionStage: React.FC<ExhibitionStageProps> = ({
               />
             </label>
             <label className="block">
-              <span className="text-xs font-semibold text-slate-700">작품 제목</span>
+              <span className="text-xs font-semibold text-slate-700">모둠 / 반 별칭</span>
+              <input
+                type="text"
+                maxLength={30}
+                placeholder="예: 2학년 A모둠"
+                value={classRoom}
+                onChange={(e) =>
+                  onChangeIdentity({ studentName, classRoom: e.target.value, houseTitle })
+                }
+                className="mt-1 w-full px-3 py-2 text-sm rounded-lg border border-slate-300"
+              />
+            </label>
+            <label className="block">
+              <span className="text-xs font-semibold text-slate-700">작품 제목 (1~80자)</span>
               <input
                 type="text"
                 required
+                maxLength={80}
                 placeholder="예: 햇빛 드는 수변 사선기둥 주택"
                 value={houseTitle}
                 onChange={(e) =>
@@ -350,33 +431,38 @@ export const ExhibitionStage: React.FC<ExhibitionStageProps> = ({
 
           <div className="bg-slate-50 border border-slate-200 rounded-lg p-3.5 text-xs text-slate-700 grid grid-cols-1 md:grid-cols-2 gap-3">
             <div>
-              <span className="font-semibold text-slate-900">자동 첨부되는 직선 분석: </span>
-              {activeLine.valid ? (
-                <MathFormula latex={activeLine.equationLatex} />
-              ) : (
-                '미입력'
-              )}
+              <span className="font-semibold text-slate-900">자동 첨부 직선 분석: </span>
+              {activeLine.valid ? <MathFormula latex={activeLine.equationLatex} /> : '미입력'}
             </div>
             <div>
-              <span className="font-semibold text-slate-900">자동 첨부되는 평면 분석: </span>
-              {activePlane.valid ? (
-                <MathFormula latex={activePlane.equationLatex} />
-              ) : (
-                '미입력'
-              )}
+              <span className="font-semibold text-slate-900">자동 첨부 평면 분석: </span>
+              {activePlane.valid ? <MathFormula latex={activePlane.equationLatex} /> : '미입력'}
             </div>
           </div>
 
-          <div className="flex items-center justify-between pt-1">
-            <span className="text-xs text-slate-500">
-              디지털 안전 약속: 전화번호, 집 주소 등 타인 및 본인의 민감한 개인정보가 포함되지 않도록 확인하세요.
+          <label className="flex items-start gap-2.5 p-3 rounded-lg bg-slate-50 border border-slate-200 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={isPublicShare}
+              onChange={(e) => setIsPublicShare(e.target.checked)}
+              className="mt-0.5 w-4 h-4 accent-blue-700 rounded"
+            />
+            <span className="text-xs text-slate-800 leading-relaxed">
+              <strong>온라인 전시관에 함께 공개하기</strong> (체크하지 않으면 교사 확인 화면에만 비공개로 저장되며, 다른 학생에게는 절대 보이지 않습니다.)
+            </span>
+          </label>
+
+          <div className="flex items-center justify-between pt-1 flex-wrap gap-3">
+            <span className="text-xs text-slate-500 flex items-center gap-1.5">
+              <Lock className="w-3.5 h-3.5" />
+              <span>기본 저장 상태: {isPublicShare ? '공개 전시 + 교사 확인' : '비공개 (교사만 열람)'}</span>
             </span>
             <button
               type="submit"
               disabled={publishing}
               className="px-5 py-2.5 rounded-lg bg-blue-700 text-white text-sm font-semibold hover:bg-blue-800 transition-colors disabled:opacity-60 whitespace-nowrap"
             >
-              {publishing ? '전시 등록 중...' : '전시관에 최종 게시하기'}
+              {publishing ? '데이터베이스 저장 중...' : '응답 저장하기'}
             </button>
           </div>
         </form>
@@ -394,7 +480,7 @@ export const ExhibitionStage: React.FC<ExhibitionStageProps> = ({
                 : 'text-slate-600 hover:text-slate-900'
             }`}
           >
-            전체 전시 작품 ({exhibitions.length})
+            공개 전시 작품 ({exhibitions.length})
           </button>
           <button
             type="button"
@@ -411,7 +497,7 @@ export const ExhibitionStage: React.FC<ExhibitionStageProps> = ({
         </div>
 
         <div className="text-xs text-slate-500">
-          카드를 클릭하면 3D 집 모델과 벡터 방정식 풀이를 회전하며 살펴보고 피드백 댓글을 남길 수 있습니다.
+          공개 설정된 작품과 수업 우수 사례만 전시됩니다. 비공개 학생 응답은 교사 확인 메뉴에서만 조회됩니다.
         </div>
       </div>
 
@@ -426,16 +512,13 @@ export const ExhibitionStage: React.FC<ExhibitionStageProps> = ({
             <div>
               <div className="text-xs text-slate-500 mb-1.5">
                 {proj.classRoom} · {proj.studentName}
-                {proj.isExemplar ? ' · 단계별 우수 사례' : ''}
+                {proj.isExemplar ? ' · 수업 예시 사례' : ' · 공개 출품작'}
               </div>
-              <h3 className="text-lg font-bold text-slate-900 leading-snug">
-                {proj.title}
-              </h3>
+              <h3 className="text-lg font-bold text-slate-900 leading-snug">{proj.title}</h3>
               <p className="text-xs text-slate-600 mt-1.5 line-clamp-2 leading-relaxed">
                 {proj.concept}
               </p>
 
-              {/* Vector Analysis Summary Box */}
               <div className="mt-4 bg-slate-50 border border-slate-200 rounded-lg p-3 space-y-2 text-xs">
                 <div className="flex items-center justify-between text-slate-500">
                   <span>집 구조 / 기준점</span>
@@ -483,7 +566,6 @@ export const ExhibitionStage: React.FC<ExhibitionStageProps> = ({
           aria-modal="true"
         >
           <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-6xl max-h-[92vh] overflow-y-auto flex flex-col">
-            {/* Modal Header */}
             <div className="px-6 py-4 border-b border-slate-200 flex items-start justify-between gap-4">
               <div>
                 <div className="text-xs text-slate-500">
@@ -504,9 +586,7 @@ export const ExhibitionStage: React.FC<ExhibitionStageProps> = ({
               </button>
             </div>
 
-            {/* Modal Content */}
             <div className="p-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
-              {/* Left 3D Model with Vector Overlays */}
               <div className="lg:col-span-7 flex flex-col gap-4">
                 <div className="h-[420px]">
                   <HouseVector3DScene
@@ -534,7 +614,6 @@ export const ExhibitionStage: React.FC<ExhibitionStageProps> = ({
                 </div>
               </div>
 
-              {/* Right Vector Formulas + Peer Feedback Section */}
               <div className="lg:col-span-5 flex flex-col gap-4">
                 <div className="bg-blueprint-grid bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-3">
                   <div className="text-sm font-bold text-slate-900">
@@ -604,49 +683,64 @@ export const ExhibitionStage: React.FC<ExhibitionStageProps> = ({
                     )}
                   </div>
 
-                  {/* Add Feedback Form */}
-                  <form onSubmit={handleSubmitComment} className="pt-3 border-t border-slate-200 space-y-2.5">
-                    <div className="text-xs font-semibold text-slate-800">
-                      피드백 댓글 양식 작성하기
-                    </div>
-                    <div className="grid grid-cols-2 gap-2">
-                      <input
-                        type="text"
-                        required
-                        placeholder="내 이름 (예: 박서준)"
-                        value={commentAuthor}
-                        onChange={(e) => setCommentAuthor(e.target.value)}
-                        className="px-2.5 py-1.5 text-xs rounded-lg border border-slate-300"
-                      />
-                      <select
-                        value={commentType}
-                        onChange={(e) =>
-                          setCommentType(e.target.value as PeerFeedback['feedbackType'])
-                        }
-                        className="px-2.5 py-1.5 text-xs rounded-lg border border-slate-300 bg-white"
-                      >
-                        <option value="vector-relation">벡터·현실공간 분석 제안</option>
-                        <option value="explore">추가 탐구 활동 제안</option>
-                        <option value="praise">칭찬 및 정확성 의견</option>
-                      </select>
-                    </div>
-                    <textarea
-                      rows={2}
-                      required
-                      value={commentText}
-                      onChange={(e) => setCommentText(e.target.value)}
-                      placeholder="친구의 벡터 분석을 보고 추가 탐구 아이디어나 현실 공간과 벡터의 관계에 대한 의견을 적어주세요."
-                      className="w-full px-3 py-2 text-xs rounded-lg border border-slate-300"
-                    />
-                    <button
-                      type="submit"
-                      disabled={commentSubmitting}
-                      className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-slate-900 text-white text-xs font-semibold hover:bg-slate-800 transition-colors"
+                  {!currentModalProject.isExemplar ? (
+                    <form
+                      onSubmit={handleSubmitComment}
+                      className="pt-3 border-t border-slate-200 space-y-2.5"
                     >
-                      <Send className="w-3.5 h-3.5" />
-                      <span>{commentSubmitting ? '등록 중...' : '피드백 댓글 남기기'}</span>
-                    </button>
-                  </form>
+                      <div className="text-xs font-semibold text-slate-800">
+                        피드백 댓글 양식 작성하기
+                      </div>
+                      {commentError && (
+                        <div className="text-xs text-red-700 bg-red-50 border border-red-200 rounded-lg p-2">
+                          {commentError}
+                        </div>
+                      )}
+                      <div className="grid grid-cols-2 gap-2">
+                        <input
+                          type="text"
+                          required
+                          maxLength={30}
+                          placeholder="내 가상 별칭"
+                          value={commentAuthor}
+                          onChange={(e) => setCommentAuthor(e.target.value)}
+                          className="px-2.5 py-1.5 text-xs rounded-lg border border-slate-300"
+                        />
+                        <select
+                          value={commentType}
+                          onChange={(e) =>
+                            setCommentType(e.target.value as PeerFeedback['feedbackType'])
+                          }
+                          className="px-2.5 py-1.5 text-xs rounded-lg border border-slate-300 bg-white"
+                        >
+                          <option value="vector-relation">벡터·현실공간 분석 제안</option>
+                          <option value="explore">추가 탐구 활동 제안</option>
+                          <option value="praise">칭찬 및 정확성 의견</option>
+                        </select>
+                      </div>
+                      <textarea
+                        rows={2}
+                        required
+                        maxLength={500}
+                        value={commentText}
+                        onChange={(e) => setCommentText(e.target.value)}
+                        placeholder="친구의 벡터 분석을 보고 추가 탐구 아이디어나 현실 공간과 벡터의 관계에 대한 의견을 적어주세요."
+                        className="w-full px-3 py-2 text-xs rounded-lg border border-slate-300"
+                      />
+                      <button
+                        type="submit"
+                        disabled={commentSubmitting}
+                        className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-slate-900 text-white text-xs font-semibold hover:bg-slate-800 transition-colors disabled:opacity-60"
+                      >
+                        <Send className="w-3.5 h-3.5" />
+                        <span>{commentSubmitting ? '저장 중...' : '피드백 댓글 남기기'}</span>
+                      </button>
+                    </form>
+                  ) : (
+                    <div className="pt-3 border-t border-slate-200 text-xs text-slate-500">
+                      이 작품은 전자칠판 시연용 기본 우수 사례입니다. 학생이 공개 출품한 작품에 댓글을 저장할 수 있습니다.
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

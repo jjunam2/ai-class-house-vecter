@@ -44,19 +44,26 @@ export const ReflectionEthicsStage: React.FC<ReflectionEthicsStageProps> = ({
 }) => {
   const [postingEthics, setPostingEthics] = useState(false);
   const [postedNotice, setPostedNotice] = useState(false);
+  const [ethicsError, setEthicsError] = useState<string | null>(null);
 
   const handleSubmitEthics = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!reflection.ethicsStance || !reflection.ethicsArgument.trim()) return;
     setPostingEthics(true);
+    setEthicsError(null);
+    setPostedNotice(false);
     try {
       await onPostEthicsNote({
-        authorName: studentName.trim() || '익명 학생',
+        authorName: studentName.trim() || '익명 별칭',
         stance: reflection.ethicsStance,
         argument: reflection.ethicsArgument.trim(),
       });
       setPostedNotice(true);
       setTimeout(() => setPostedNotice(false), 2500);
+    } catch (err) {
+      setEthicsError(
+        err instanceof Error ? err.message : '윤리 토론 의견을 저장하지 못했습니다.'
+      );
     } finally {
       setPostingEthics(false);
     }
@@ -197,6 +204,12 @@ export const ReflectionEthicsStage: React.FC<ReflectionEthicsStageProps> = ({
               placeholder="나의 입장과 그 이유를 작성해 학급 윤리 토론 보드에 공유하세요."
               className="w-full px-3 py-2 text-sm rounded-lg border border-slate-300"
             />
+
+            {ethicsError && (
+              <div className="bg-red-50 border border-red-200 text-red-800 rounded-lg p-2.5 text-xs">
+                {ethicsError}
+              </div>
+            )}
 
             <div className="flex items-center justify-between">
               <span className="text-xs text-emerald-700 font-medium">

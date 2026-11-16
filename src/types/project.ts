@@ -1,4 +1,4 @@
-export type StageId = 'observation' | 'design' | 'verification' | 'exhibition' | 'reflection';
+export type StageId = 'observation' | 'design' | 'verification' | 'exhibition' | 'reflection' | 'teacher';
 
 export type HouseArchetype = 'gable' | 'shed' | 'aframe' | 'custom';
 export type OriginMode = 'corner' | 'center' | 'custom';
@@ -232,8 +232,14 @@ export interface ExhibitionProject {
     resultText: string;
   } | null;
   reflectionNote: string;
+  selfEval?: {
+    selfEval1: SelfEvalLevel;
+    selfEval2: SelfEvalLevel;
+    selfEval3: SelfEvalLevel;
+  } | null;
   aiCitationNote: string;
   isExemplar?: boolean;
+  isPublic?: boolean;
   comments: PeerFeedback[];
   createdAt: string;
 }

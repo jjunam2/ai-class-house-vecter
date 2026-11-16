@@ -606,3 +606,142 @@ export function verifyRelationTask(
     valueMatch: studentVal !== null && Math.abs(studentVal - dist) <= 0.15,
   };
 }
+
+export function diagnoseVectorAttempt(
+  taskType: 'line' | 'plane' | 'relation',
+  points: HousePoint[],
+  lineInput: LineStudentInput,
+  planeInput: PlaneStudentInput,
+  relationInput: RelationStudentInput,
+  config: HouseDesignConfig
+) {
+  const now = new Date().toISOString();
+
+  if (taskType === 'line') {
+    const exact = verifyLineEquation(points, lineInput);
+    if (!exact.valid) {
+      return {
+        summary: exact.error ?? '서로 다른 두 점을 선택해 주세요.',
+        isConsistentWithStudent: false,
+        aiCalculatedEquation: '미산출',
+        aiCalculatedAngleOrValue: '미산출',
+        stepByStepAdvice: ['서로 다른 시작점 A와 끝점 B를 먼저 지정하세요.'],
+        mistakeSpots: ['선택한 두 점이 일치합니다.'],
+        citationNote: '자체 대수 추론 도우미(외부 유료 API 미사용)',
+        checkedAt: now,
+      };
+    }
+
+    const mistakes: string[] = [];
+    if (!exact.checks.directionMatch) {
+      mistakes.push('방향벡터 u = B - A의 각 성분 차이를 다시 계산해 보세요. (상수배는 모두 정답으로 인정됩니다.)');
+    }
+    if (!exact.checks.basePointOnLine) {
+      mistakes.push('방정식에 대입한 지나는 점 (x₁, y₁, z₁)이 두 점 A, B를 잇는 직선 위에 있지 않습니다.');
+    }
+    if (!exact.checks.lengthMatch) {
+      mistakes.push('선분 길이 √(a² + b² + c²) 계산을 소수 둘째 자리까지 다시 확인해 보세요.');
+    }
+    if (!exact.checks.angleMatch) {
+      mistakes.push('지면(z=0)과 직선이 이루는 각 θ는 sin θ = |u_z| / |u| 관계를 이용해 구합니다.');
+    }
+
+    return {
+      summary: exact.checks.allCorrect
+        ? '입력한 방향벡터, 지나는 점, 길이, 지면 각도가 모두 수학적으로 정확히 일치합니다.'
+        : '일부 항목에서 계산 오차나 부호 확인이 필요합니다. 아래 점검 포인트를 참고해 수정한 뒤 교사 정밀 검증기로 확정하세요.',
+      isConsistentWithStudent: exact.checks.allCorrect,
+      aiCalculatedEquation: `${exact.pointA.label}(${fmtNum(exact.pointA.x)},${fmtNum(exact.pointA.y)},${fmtNum(exact.pointA.z)}), 방향벡터 (${fmtNum(exact.simplifiedDir.x)}, ${fmtNum(exact.simplifiedDir.y)}, ${fmtNum(exact.simplifiedDir.z)})`,
+      aiCalculatedAngleOrValue: `길이 ${fmtNum(exact.exactLength)} m · 지면각 ${fmtNum(exact.exactAngleGroundDeg)}°`,
+      stepByStepAdvice: [
+        '1단계: 끝점 좌표에서 시작점 좌표를 빼서 방향벡터를 구합니다.',
+        '2단계: 성분 중 0이 있으면 대칭형 분수식 대신 x = x₁ 형태로 따로 표기합니다.',
+      ],
+      mistakeSpots: mistakes,
+      citationNote: '자체 대수 추론 도우미(외부 유료 API 미사용)',
+      checkedAt: now,
+    };
+  }
+
+  if (taskType === 'plane') {
+    const exact = verifyPlaneEquation(points, planeInput);
+    if (!exact.valid) {
+      return {
+        summary: exact.error ?? '일직선 위에 있지 않은 세 점을 선택해 주세요.',
+        isConsistentWithStudent: false,
+        aiCalculatedEquation: '미산출',
+        aiCalculatedAngleOrValue: '미산출',
+        stepByStepAdvice: ['삼각형을 이루는 세 점 P, Q, R을 선택하세요.'],
+        mistakeSpots: ['세 점이 일직선 위에 있습니다.'],
+        citationNote: '자체 대수 추론 도우미(외부 유료 API 미사용)',
+        checkedAt: now,
+      };
+    }
+
+    const mistakes: string[] = [];
+    if (!exact.checks.pqMatch || !exact.checks.prMatch) {
+      mistakes.push('두 벡터 PQ = Q - P, PR = R - P의 뺄셈 순서를 확인해 주세요.');
+    }
+    if (!exact.checks.normalMatch) {
+      mistakes.push('법선벡터 n은 n·PQ = 0 이고 n·PR = 0 을 동시에 만족해야 합니다.');
+    }
+    if (!exact.checks.equationMatch) {
+      mistakes.push('법선벡터 방향이 같더라도 점 P를 대입해 상수항 d = -(ax₀ + by₀ + cz₀)를 다시 계산해 보세요.');
+    }
+    if (!exact.checks.angleMatch) {
+      mistakes.push('지붕 경사각 θ는 cos θ = |n_z| / |n| 공식으로 구할 수 있습니다.');
+    }
+
+    return {
+      summary: exact.checks.allCorrect
+        ? '두 평면 위 벡터와 법선벡터, 평면의 방정식 및 경사각이 모두 일치합니다.'
+        : '법선벡터의 수직 조건이나 상수항 d의 부호를 점검해 보세요.',
+      isConsistentWithStudent: exact.checks.allCorrect,
+      aiCalculatedEquation: `법선벡터 (${fmtNum(exact.simplifiedNormal.x)}, ${fmtNum(exact.simplifiedNormal.y)}, ${fmtNum(exact.simplifiedNormal.z)}) · d = ${fmtNum(exact.exactD)}`,
+      aiCalculatedAngleOrValue: `지붕 경사각 ${fmtNum(exact.exactAngleGroundDeg)}°`,
+      stepByStepAdvice: [
+        '1단계: 세 점으로 두 벡터 PQ, PR을 먼저 구합니다.',
+        '2단계: 두 벡터에 수직인 법선벡터를 구한 뒤 한 점을 대입해 d를 결정합니다.',
+      ],
+      mistakeSpots: mistakes,
+      citationNote: '자체 대수 추론 도우미(외부 유료 API 미사용)',
+      checkedAt: now,
+    };
+  }
+
+  const lRes = verifyLineEquation(points, lineInput);
+  const pRes = verifyPlaneEquation(points, planeInput);
+  const rel = verifyRelationTask(points, lRes, pRes, relationInput, config);
+  if (!rel.valid) {
+    return {
+      summary: rel.error ?? '먼저 직선과 평면을 설정해 주세요.',
+      isConsistentWithStudent: false,
+      aiCalculatedEquation: '선행 과제 필요',
+      aiCalculatedAngleOrValue: '미산출',
+      stepByStepAdvice: ['과제 1과 과제 2의 점을 먼저 유효하게 지정하세요.'],
+      mistakeSpots: [rel.error ?? '선행 설정이 필요합니다.'],
+      citationNote: '자체 대수 추론 도우미(외부 유료 API 미사용)',
+      checkedAt: now,
+    };
+  }
+
+  return {
+    summary: rel.valueMatch
+      ? '심화 기하 관계(각도/거리) 계산 결과가 정확합니다.'
+      : '내적 또는 점과 평면 사이 거리 공식의 분모(|u||n| 또는 √(a²+b²+c²))를 다시 확인해 보세요.',
+    isConsistentWithStudent: rel.valueMatch,
+    aiCalculatedEquation:
+      rel.mode === 'line-plane-angle'
+        ? 'sin θ = |u·n| / (|u||n|)'
+        : rel.mode === 'two-planes-dihedral'
+        ? 'cos θ = |n₁·n₂| / (|n₁||n₂|)'
+        : 'd = |ax₀+by₀+cz₀+d| / √(a²+b²+c²)',
+    aiCalculatedAngleOrValue: `${fmtNum(rel.exactValue)} ${rel.unit}`,
+    stepByStepAdvice: [
+      '직선-평면 각도는 sin θ, 두 평면의 이면각은 cos θ를 사용한다는 점에 유의하세요.',
+    ],
+    mistakeSpots: rel.valueMatch ? [] : ['계산값과 공식 적용 결과를 한 번 더 대조해 보세요.'],
+    citationNote: '자체 대수 추론 도우미(외부 유료 API 미사용)',
+    checkedAt: now,
+  };
+}
